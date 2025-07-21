@@ -6,12 +6,12 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.filters import CommandStart
 
-TOKEN = 'твой_ТОКЕН_ЗДЕСЬ'  # замени на свой токен
+TOKEN = '7835580826:AAELzWFh_Fe010cMIiz4w13niKZ01h6pu1Q'  # замени на свой токен
 
 GROUPS = [
     "BTS", "BLACKPINK", "NewJeans", "LE SSERAFIM",
     "ENHYPEN", "SEVENTEEN", "EXO", "Stray Kids",
-    "TXT", "TWICE", "IVE", "ZEROBASEONE"
+    "TXT", "TWICE", "IVE", "ZEROBASEONE", "ATEEZ"
 ]
 
 bot = Bot(token=TOKEN)

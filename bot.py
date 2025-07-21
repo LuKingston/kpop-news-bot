@@ -120,4 +120,48 @@ async def forward_handler(message: types.Message):
 
     else:
         # Обычное одиночное сообщение
-        text = message.text or message.caption or
+        text = message.text or message.caption or ""
+        hashtags = re.findall(r"#(\w+)", text)
+        matched_groups = [g for g in GROUPS if g.upper().replace(" ", "") in [h.upper() for h in hashtags]]
+
+        if not matched_groups:
+            await message.answer("❗️ Хэштеги не совпали ни с одной группой")
+            return
+
+        async with aiosqlite.connect("users.db") as db:
+            for group in matched_groups:
+                cursor = await db.execute(
+                    "SELECT user_id FROM subscriptions WHERE group_name = ?", (group,)
+                )
+                users = await cursor.fetchall()
+                for (user_id,) in users:
+                    try:
+                        await bot.copy_message(
+                            chat_id=user_id,
+                            from_chat_id=message.chat.id,
+                            message_id=message.message_id
+                        )
+                    except Exception as e:
+                        print(f"Ошибка при отправке пользователю {user_id}: {e}")
+
+        await message.answer(f"✅ Новость отправлена подписчикам: {', '.join(matched_groups)}")
+
+async def handle(request):
+    return web.Response(text="Bot is running")
+
+async def start_webserver():
+    app = web.Application()
+    app.router.add_get('/', handle)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 8080)  # порт 8080 для Render
+    await site.start()
+
+async def main():
+    await init_db()
+    await start_webserver()
+    print("Бот и веб-сервер запущены")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())

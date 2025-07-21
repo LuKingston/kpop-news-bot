@@ -9,3 +9,4 @@ Telegram-бот для рассылки новостей о K-pop группах
 git clone https://github.com/твой_пользователь/твой_репозиторий.git
 
 pip install -r requirements.txt
+

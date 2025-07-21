@@ -1,0 +1,142 @@
+import asyncio
+import re
+import aiosqlite
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.filters import CommandStart, Command
+
+TOKEN = '7835580826:AAELzWFh_Fe010cMIiz4w13niKZ01h6pu1Q'  # замени на свой токен
+
+GROUPS = [
+    "BTS", "BLACKPINK", "NewJeans", "LE SSERAFIM",
+    "ENHYPEN", "SEVENTEEN", "EXO", "Stray Kids",
+    "TXT", "TWICE", "IVE", "ZEROBASEONE", "ATEEZ"
+]
+
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
+
+async def init_db():
+    async with aiosqlite.connect("users.db") as db:
+        await db.execute(
+            "CREATE TABLE IF NOT EXISTS subscriptions (user_id INTEGER, group_name TEXT)"
+        )
+        await db.commit()
+
+def get_group_keyboard():
+    keyboard = []
+    row = []
+    for i, group in enumerate(GROUPS, start=1):
+        row.append(InlineKeyboardButton(text=group, callback_data=f"toggle:{group}"))
+        if i % 2 == 0:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+@dp.message(CommandStart())
+async def start_cmd(message: types.Message):
+    await message.answer(
+        "Выбери K-pop группы, о которых хочешь получать новости:",
+        reply_markup=get_group_keyboard()
+    )
+
+@dp.message(Command("groups"))
+async def show_subscriptions(message: types.Message):
+    user_id = message.from_user.id
+    async with aiosqlite.connect("users.db") as db:
+        cursor = await db.execute(
+            "SELECT group_name FROM subscriptions WHERE user_id = ?", (user_id,)
+        )
+        rows = await cursor.fetchall()
+        if rows:
+            groups = [row[0] for row in rows]
+            await message.answer("Ты подписан(а) на: " + ', '.join(groups))
+        else:
+            await message.answer("Ты пока не выбрал(а) ни одной группы")
+
+@dp.callback_query()
+async def toggle_subscription(callback: types.CallbackQuery):
+    group = callback.data.split(":")[1]
+    user_id = callback.from_user.id
+    async with aiosqlite.connect("users.db") as db:
+        cursor = await db.execute(
+            "SELECT 1 FROM subscriptions WHERE user_id = ? AND group_name = ?",
+            (user_id, group)
+        )
+        exists = await cursor.fetchone()
+        if exists:
+            await db.execute(
+                "DELETE FROM subscriptions WHERE user_id = ? AND group_name = ?",
+                (user_id, group)
+            )
+            text = f"Уведомления о {group} отключены"
+        else:
+            await db.execute(
+                "INSERT INTO subscriptions (user_id, group_name) VALUES (?, ?)",
+                (user_id, group)
+            )
+            text = f"Теперь ты получаешь новости о {group}"
+        await db.commit()
+
+        cursor = await db.execute(
+            "SELECT group_name FROM subscriptions WHERE user_id = ?", (user_id,)
+        )
+        rows = await cursor.fetchall()
+        selected = [row[0] for row in rows]
+        summary = "Текущие подписки: " + (", ".join(selected) if selected else "ничего")
+
+        await callback.answer(text, show_alert=False)
+        await callback.message.edit_text(
+            f"{text}\n\n{summary}",
+            reply_markup=get_group_keyboard()
+        )
+
+@dp.message()
+async def forward_handler(message: types.Message):
+    if not message.forward_from_chat:
+        return
+    text = message.text or message.caption or ""
+    hashtags = re.findall(r"#(\w+)", text)
+    matched_groups = [g for g in GROUPS if g.upper().replace(" ", "") in [h.upper() for h in hashtags]]
+    if not matched_groups:
+        await message.answer("❗️ Хэштеги не совпали ни с одной группой")
+        return
+
+    async with aiosqlite.connect("users.db") as db:
+        for group in matched_groups:
+            cursor = await db.execute(
+                "SELECT user_id FROM subscriptions WHERE group_name = ?", (group,)
+            )
+            users = await cursor.fetchall()
+            for (user_id,) in users:
+                try:
+                    await bot.copy_message(
+                        chat_id=user_id,
+                        from_chat_id=message.chat.id,
+                        message_id=message.message_id
+                    )
+                except Exception as e:
+                    print(f"Ошибка при отправке пользователю {user_id}: {e}")
+    await message.answer(f"✅ Новость отправлена подписчикам: {', '.join(matched_groups)}")
+    if not message.forward_from_chat:
+        return
+    text = message.text or message.caption or ""
+    hashtags = re.findall(r"#(\w+)", text)
+    matched_groups = [g for g in GROUPS if g.upper().replace(" ", "") in [h.upper() for h in hashtags]]
+    if not matched_groups:
+        await message.answer("❗️ Хэштеги не совпали ни с одной группой")
+        return
+
+    async with aiosqlite.connect("users.db") as db:
+        for group in matched_groups:
+           cursor = await db.execute(
+    "SELECT user_id FROM subscriptions WHERE group_name = ?", (group,)
+)
+
+async def main():
+    await init_db()
+    await dp.start_polling(bot)
+if __name__ == "__main__":
+    asyncio.run(main())

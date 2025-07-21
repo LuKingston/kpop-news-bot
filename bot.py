@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.filters import CommandStart
 
-TOKEN = '7835580826:AAHDgAwau5I_vLY_QJT_WjXazQL4ojXsbD4'  # замени на свой токен
+TOKEN = '7835580826:AAEqsqA1M5RkdE2l9ybKjLFyRav5tLM4A8k'  # замени на свой токен
 
 GROUPS = [
     "BTS", "BLACKPINK", "NewJeans", "LE SSERAFIM",

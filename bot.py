@@ -113,21 +113,23 @@ async def forward_handler(message: types.Message):
             await messages[0].answer("❗️ Хэштеги не совпали ни с одной группой")
             return
 
-        async with aiosqlite.connect("users.db") as db:for group in matched_groups:
-                cursor = await db.execute(
-                    "SELECT user_id FROM subscriptions WHERE group_name = ?", (group,)
-                )
-                users = await cursor.fetchall()
-                for (user_id,) in users:
-                    try:
-                        for msg in messages:
-                            await bot.copy_message(
-                                chat_id=user_id,
-                                from_chat_id=msg.chat.id,
-                                message_id=msg.message_id
-                            )
-                    except Exception as e:
-                        print(f"Ошибка при отправке пользователю {user_id}: {e}")
+       async with
+ aiosqlite.connect("users.db") as db:
+    for group in matched_groups:
+        cursor = await db.execute(
+            "SELECT user_id FROM subscriptions WHERE group_name = ?", (group,)
+        )
+        users = await cursor.fetchall()
+        for (user_id,) in users:
+            try:
+                for msg in messages:
+                    await bot.copy_message(
+                        chat_id=user_id,
+                        from_chat_id=msg.chat.id,
+                        message_id=msg.message_id
+                    )
+            except Exception as e:
+                print(f"Ошибка при отправке пользователю {user_id}: {e}")
 
         await messages[0].answer(f"✅ Новость отправлена подписчикам: {', '.join(matched_groups)}")
 
